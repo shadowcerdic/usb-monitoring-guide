@@ -1,5 +1,11 @@
 # 10. Validation
 
+> A completed live validation of this guide (Splunk Enterprise single instance,
+> real USB device, all tests below passing) is documented in
+> [docs/live-validation/USB_Monitoring_Report.md](live-validation/USB_Monitoring_Report.md),
+> with screenshots. Hostnames, the USB serial, and account names are redacted
+> in the public version.
+
 This repository does not include synthetic data or an offline detector. Validate on **real telemetry** from systems and devices you are authorized to test.
 
 ## 10.1 Data-quality checklist
