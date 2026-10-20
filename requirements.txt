@@ -1,0 +1,2 @@
+# Python 3.9+; only the attribution job needs requests.
+requests>=2.28

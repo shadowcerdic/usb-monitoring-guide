@@ -1,0 +1,141 @@
+<form version="1.1">
+  <label>USB Monitoring &amp; DLP</label>
+  <description>USB device, attributed file copy, HID and locked-file activity. Requires index=usb_monitoring, the usb_normalize macro, the usb_file_attribution lookup, and the usb_allowlist lookup.</description>
+  <fieldset submitButton="false">
+    <input type="time" token="t">
+      <label>Time range</label>
+      <default>
+        <earliest>-30d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <single>
+        <title>Events</title>
+        <search>
+          <query>index=usb_monitoring sourcetype=usb_monitoring_json | stats count</query>
+          <earliest>$t.earliest$</earliest>
+          <latest>$t.latest$</latest>
+        </search>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Storage connects</title>
+        <search>
+          <query>index=usb_monitoring sourcetype=usb_monitoring_json event.code=6416 | `usb_normalize` | search usb_class=USBSTOR | stats count</query>
+          <earliest>$t.earliest$</earliest>
+          <latest>$t.latest$</latest>
+        </search>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Attributed removable file creates</title>
+        <search>
+          <query>index=usb_monitoring sourcetype=usb_monitoring_json event.code=11 | `usb_normalize` | eval file_time=strftime(_time,"%s") | lookup usb_file_attribution.csv host file_path file_time OUTPUTNEW usb_serial | where isnotnull(usb_serial) | stats count</query>
+          <earliest>$t.earliest$</earliest>
+          <latest>$t.latest$</latest>
+        </search>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>HID connects</title>
+        <search>
+          <query>index=usb_monitoring sourcetype=usb_monitoring_json event.code=6416 | `usb_normalize` | search usb_class=HID | stats count</query>
+          <earliest>$t.earliest$</earliest>
+          <latest>$t.latest$</latest>
+        </search>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Fixed-disk .locked files</title>
+        <search>
+          <query>index=usb_monitoring sourcetype=usb_monitoring_json event.code=11 | `usb_normalize` | where lower(file_ext)="locked" AND like(lower(file_path), "c:%") | stats count</query>
+          <earliest>$t.earliest$</earliest>
+          <latest>$t.latest$</latest>
+        </search>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Events over time</title>
+        <search>
+          <query>index=usb_monitoring sourcetype=usb_monitoring_json | timechart span=1h count by event.code</query>
+          <earliest>$t.earliest$</earliest>
+          <latest>$t.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.axisTitleX.text">Time</option>
+        <option name="charting.axisTitleY.text">Events</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>Connect volume letters</title>
+        <search>
+          <query>index=usb_monitoring sourcetype=usb_monitoring_json event.code=6416 | `usb_normalize` | search usb_class=USBSTOR | stats count by usb_letter | sort -count</query>
+          <earliest>$t.earliest$</earliest>
+          <latest>$t.latest$</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Connects by host</title>
+        <search>
+          <query>index=usb_monitoring sourcetype=usb_monitoring_json event.code=6416 | `usb_normalize` | stats count by host | sort -count</query>
+          <earliest>$t.earliest$</earliest>
+          <latest>$t.latest$</latest>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.axisTitleX.text">Host</option>
+        <option name="charting.axisTitleY.text">Connects</option>
+      </chart>
+    </panel>
+    <panel>
+      <table>
+        <title>Top USB serials</title>
+        <search>
+          <query>index=usb_monitoring sourcetype=usb_monitoring_json event.code=6416 | `usb_normalize` | search usb_class=USBSTOR | stats count by usb_serial host | sort -count</query>
+          <earliest>$t.earliest$</earliest>
+          <latest>$t.latest$</latest>
+        </search>
+        <option name="count">15</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Attributed files by user</title>
+        <search>
+          <query>index=usb_monitoring sourcetype=usb_monitoring_json event.code=11 | `usb_normalize` | eval file_time=strftime(_time,"%s") | lookup usb_file_attribution.csv host file_path file_time OUTPUTNEW usb_serial | where isnotnull(usb_serial) | stats count by user usb_serial host | sort -count</query>
+          <earliest>$t.earliest$</earliest>
+          <latest>$t.latest$</latest>
+        </search>
+        <option name="count">20</option>
+      </table>
+    </panel>
+    <panel>
+      <table>
+        <title>.locked files by process</title>
+        <search>
+          <query>index=usb_monitoring sourcetype=usb_monitoring_json event.code=11 | `usb_normalize` | where lower(file_ext)="locked" AND like(lower(file_path), "c:%") | stats count by host process_name | sort -count</query>
+          <earliest>$t.earliest$</earliest>
+          <latest>$t.latest$</latest>
+        </search>
+        <option name="count">20</option>
+      </table>
+    </panel>
+  </row>
+</form>

@@ -1,0 +1,25 @@
+# rule: offhours_source_copy
+# platform: Splunk scheduled search
+# index/sourcetype: usb_monitoring / usb_monitoring_json
+# schedule: hourly, earliest=-26h, latest=now
+# dependency: usb_file_attribution lookup from scripts/enrich_usb_attribution.py
+# MITRE: T1052 — Exfiltration over USB
+# expected alert shape: one row per user+host+day when 20 source files are
+#   copied outside 08:00-17:59
+# caveats:
+#   - strftime() uses the Splunk user's timezone. Run the search as a UTC user
+#     or adjust the 08/18 bounds and the day grouping to the org timezone.
+#     Iran is UTC+3:30 with no DST.
+#   - This is a per-day count, not a rolling 24h count. The 26h lookback keeps
+#     the previous day visible at the boundary.
+#   - The lookup must be fresh; a dead attribution job silently disables this.
+index=usb_monitoring sourcetype=usb_monitoring_json event.code=11
+| `usb_normalize`
+| eval file_time=strftime(_time,"%s")
+| lookup usb_file_attribution.csv host file_path file_time OUTPUTNEW usb_serial
+| where isnotnull(usb_serial)
+| eval ext=lower(file_ext), hour=strftime(_time,"%H"), day=strftime(_time,"%Y-%m-%d")
+| where match(ext, "^(cs|java|py|go|ts)$") AND (hour < "08" OR hour >= "18")
+| stats count as files values(file_name) as samples by day user host
+| where files >= 20
+| table day user host files samples

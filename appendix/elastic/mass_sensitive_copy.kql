@@ -1,0 +1,18 @@
+# rule: mass_sensitive_copy
+# platform: Elastic Detection Engine — threshold rule (KQL)
+# index: usb-monitoring (enriched)
+# schedule: from now-30m, interval 5m
+# threshold: field [user.name, usb.serial_number, host.name], value 5
+# MITRE: T1052 — Exfiltration over USB
+# expected alert shape: one alert per user+serial+host when five matching file
+#   creates occur in the rule window
+# caveats:
+#   - file.name_lower, file.drive_type, and usb.serial_number are enrichment
+#     fields, not raw Sysmon fields. If the enrichment job stops, this rule is
+#     silent; monitor it separately.
+#   - This is the secondary Elastic translation. See appendix/elastic/README.md
+#     for the missing enrichment pipeline.
+event.type: "creation"
+  and file.drive_type: "removable"
+  and usb.serial_number: *
+  and file.name_lower: (customer_db* or iban_* or payroll* or national_id* or api_keys* or *secrets*)

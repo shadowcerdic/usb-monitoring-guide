@@ -1,0 +1,25 @@
+# rule: ransom_fixed_disk
+# platform: Splunk scheduled search
+# index/sourcetype: usb_monitoring / usb_monitoring_json
+# schedule: every minute, earliest=-15m, latest=now
+# MITRE: T1486 — Data Encrypted for Impact
+# expected alert shape: one row per host+process when 15 .locked files are
+#   created on a fixed disk inside one 180-second bin
+# caveats:
+#   - This is intentionally broader than a USB-delivered scenario. A ransomware
+#     incident that arrived by email/RDP/exploit must also fire. The USB link is
+#     a triage step, not a rule condition.
+#   - bin is tumbling. Keep the one-minute interval so a short burst is not
+#     missed.
+#   - The C: filter is an example. Change it to your fixed-volume letters or
+#     remove it after testing.
+#   - Treat a hit as potential ransomware until cleared; investigate before
+#     tuning.
+index=usb_monitoring sourcetype=usb_monitoring_json event.code=11
+| `usb_normalize`
+| where lower(file_ext)="locked" AND like(lower(file_path), "c:%")
+| eval proc_key=coalesce(process_entity_id, process_name, "unknown")
+| bin _time span=180s
+| stats count as locked_files values(file_path) as sample_paths by _time host proc_key process_name
+| where locked_files >= 15
+| table _time host process_name proc_key locked_files sample_paths

@@ -1,0 +1,18 @@
+# rule: mass_sensitive_copy_approx
+# platform: Elastic EQL sequence (raw index, no enrichment)
+# schedule: from now-30m, interval 5m
+# MITRE: T1052 — Exfiltration over USB
+# expected alert shape: one sequence per host+user with five sensitive-name
+#   file creates inside maxspan=30m
+# caveats:
+#   - Approximate: no USB session/volume binding. Five sensitive files on a
+#     fixed non-C: disk or a network share also match.
+#   - EQL wildcard (:) matching is case-insensitive.
+#   - A sequence is not a sliding count; a sixth event does not create a second
+#     sequence, and events before the first matched clause are ignored.
+sequence by host.name, user.name with maxspan=30m
+  [file where event.type : "creation" and not file.path : "C:\\*" and file.name : ("customer_db*" or "iban_*" or "payroll*" or "national_id*" or "api_keys*" or "*secrets*")]
+  [file where event.type : "creation" and not file.path : "C:\\*" and file.name : ("customer_db*" or "iban_*" or "payroll*" or "national_id*" or "api_keys*" or "*secrets*")]
+  [file where event.type : "creation" and not file.path : "C:\\*" and file.name : ("customer_db*" or "iban_*" or "payroll*" or "national_id*" or "api_keys*" or "*secrets*")]
+  [file where event.type : "creation" and not file.path : "C:\\*" and file.name : ("customer_db*" or "iban_*" or "payroll*" or "national_id*" or "api_keys*" or "*secrets*")]
+  [file where event.type : "creation" and not file.path : "C:\\*" and file.name : ("customer_db*" or "iban_*" or "payroll*" or "national_id*" or "api_keys*" or "*secrets*")]

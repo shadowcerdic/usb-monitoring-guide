@@ -1,0 +1,20 @@
+# rule: ransom_fixed_disk
+# platform: Elastic Detection Engine — threshold rule (KQL)
+# index: usb-monitoring (raw or enriched)
+# schedule: from now-3m, interval 1m
+# threshold: field [process.entity_id], value 15
+# MITRE: T1486 — Data Encrypted for Impact
+# expected alert shape: one alert per process when 15 .locked files are
+#   created on C: inside the 3-minute window
+# caveats:
+#   - Broader than a USB-delivered scenario by design: ransomware that arrived
+#     by email/RDP/exploit must also fire. The USB link is triage, not a
+#     condition.
+#   - Keep interval <= the 3-minute window.
+#   - file.extension is a keyword; lowercase it at ingest or include LOCKED.
+#   - file.path is keyword and case-sensitive; use file.path.text or a
+#     normalized path on case-varied systems.
+#   - Secondary Elastic translation; see appendix/elastic/README.md.
+event.type: "creation"
+  and file.extension: "locked"
+  and file.path: "C:\\*"

@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+real_logs/
+*.vhd
+*.vhdx
+splunk/lookups/usb_file_attribution.csv
+splunk/lookups/usb_allowlist.csv
+*.tmp.*

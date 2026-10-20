@@ -1,0 +1,31 @@
+# rule: hid_then_shell
+# platform: Splunk scheduled search (transaction)
+# index/sourcetype: usb_monitoring / usb_monitoring_json
+# schedule: every 5 minutes, earliest=-6m, latest=now
+# dependency: usb_allowlist.csv lookup (create from the example schema)
+# MITRE: T1200 — Hardware Additions; T1059.001 — PowerShell
+# expected alert shape: one transaction per host containing an HID connect and
+#   a shell start within 60 seconds
+# caveats:
+#   - transaction proves co-occurrence within 60s, not strict order. Check the
+#     timestamps before closing the alert.
+#   - Security 6416 covers HID only when Audit PnP Activity is enabled. Sysmon
+#     does not log device connects.
+#   - HID serials are often missing/non-unique. If usb_serial is empty, the
+#     allowlist cannot suppress the device; use usb.device_id or an EDR asset ID.
+#   - Splunk 10.x field resolution (found during live validation): a dotted
+#     field name is null inside eval/if unless single-quoted. Keep the bare
+#     term in the base filter (event.code=6416) and quote it in eval/if.
+#   - Do not allowlist a device without a ticket, owner, and review date.
+index=usb_monitoring sourcetype=usb_monitoring_json (event.code=6416 OR event.code=1)
+| `usb_normalize`
+| eval is_hid=if('event.code'=6416 AND usb_class="HID", 1, 0)
+| eval is_shell=if('event.code'=1 AND match(lower(process_name), "^(powershell|cmd)\.exe$"), 1, 0)
+| where is_hid=1 OR is_shell=1
+| lookup usb_allowlist.csv serial AS usb_serial OUTPUTNEW model AS allowlisted_model
+| where is_hid=0 OR isnull(allowlisted_model)
+| transaction host maxspan=60s
+| eval has_hid=mvcount(mvfilter(is_hid=1)), has_shell=mvcount(mvfilter(is_shell=1))
+| where has_hid > 0 AND has_shell > 0
+| eval serials=mvjoin(usb_serial, ","), processes=mvjoin(process_name, ",")
+| table _time duration eventcount host has_hid has_shell serials processes

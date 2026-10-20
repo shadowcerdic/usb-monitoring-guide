@@ -1,0 +1,25 @@
+# rule: mass_sensitive_copy
+# platform: Splunk scheduled search
+# index/sourcetype: usb_monitoring / usb_monitoring_json
+# schedule: every 5 minutes, earliest=-2h, latest=now
+# dependency: usb_file_attribution lookup from scripts/enrich_usb_attribution.py
+# MITRE: T1052 — Exfiltration over USB
+# expected alert shape: one row per user+serial+host when 5 matching file
+#   creates occur inside one 30-minute bin
+# caveats:
+#   - bin is tumbling, not sliding. A burst split across a boundary can be
+#     missed; run more often or use a sliding streamstats design if required.
+#   - The count is file-create events, not unique names.
+#   - Keyword matching is case-insensitive here because name_lower is used.
+#   - The lookup must be fresh; a dead attribution job silently disables this.
+index=usb_monitoring sourcetype=usb_monitoring_json event.code=11
+| `usb_normalize`
+| eval file_time=strftime(_time,"%s")
+| lookup usb_file_attribution.csv host file_path file_time OUTPUTNEW usb_serial
+| where isnotnull(usb_serial)
+| eval name_lower=lower(file_name)
+| where match(name_lower, "(customer_db|iban_|payroll|national_id|api_keys|secrets)")
+| bin _time span=30m
+| stats count as files values(name_lower) as names by _time user usb_serial host
+| where files >= 5
+| table _time user host usb_serial files names
